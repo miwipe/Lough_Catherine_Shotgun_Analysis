@@ -18,11 +18,11 @@ damage for plant species with >500 reads allowed us to create a DNA damage model
 used to filter all eukaryotic taxa as described in the SI
 
 ###############################################################################
-# Holi pipeline 
+## Holi pipeline 
 ###############################################################################
 
 ############################
-# 0) INSTALLATION (TOOLS)  #
+### 0) INSTALLATION (TOOLS)  #
 ############################
 # Step 0.1 Install with conda/mamba (recommended). Run manually:
 #
@@ -34,24 +34,24 @@ used to filter all eukaryotic taxa as described in the SI
 #   AdapterRemoval, fastq-grep, sga, bowtie2, samtools, awk/sed/coreutils, gzip/pigz
 
 ########################
-# 1) CONFIG (EDIT ME)  #
+### 1) CONFIG (EDIT ME)  #
 ########################
 
-# Step 1.1 Threading
+#### Step 1.1 Threading
 THREADS_MAP=80
 THREADS_SGA=30
 THREADS_SAMTOOLS=30
 
-# Step 1.2 Temporary directory (portable)
+#### Step 1.2 Temporary directory (portable)
 TMPDIR="${TMPDIR:-./tmp}"
 mkdir -p "$TMPDIR"
 
-# Step 1.3 Database root (EDIT THIS)
-# Use a relative path for portability, e.g. DB_ROOT="../databases"
+#### Step 1.3 Database root (EDIT THIS)
+**Use a relative path for portability, e.g. DB_ROOT="../databases"**
 DB_ROOT="${DB_ROOT:-./databases}"
 
-# Step 1.4 Database globs/prefixes (EDIT THESE TO MATCH YOUR SETUP)
-# Each entry must expand to Bowtie2 index prefixes (what you pass to bowtie2 -x).
+#### Step 1.4 Database globs/prefixes (EDIT THESE TO MATCH YOUR SETUP)
+**Each entry must expand to Bowtie2 index prefixes (what you pass to bowtie2 -x).**
 DB_NORPLANT_GLOB="${DB_NORPLANT_GLOB:-$DB_ROOT/norway_plant_ctgenoms/complete_genomes/final_db/norPlantCom.?}"
 DB_NT_GLOB="${DB_NT_GLOB:-$DB_ROOT/ncbi_nt/nt.?}"
 DB_VERT_OTHER_GLOB="${DB_VERT_OTHER_GLOB:-$DB_ROOT/refseq/vert_other/vert_other.?}"
@@ -59,18 +59,18 @@ DB_VERT_MAM_GLOB_1="${DB_VERT_MAM_GLOB_1:-$DB_ROOT/refseq/vert_mam/vert_mam.?}"
 DB_VERT_MAM_GLOB_2="${DB_VERT_MAM_GLOB_2:-$DB_ROOT/refseq/vert_mam/vert_mam.??}"
 DB_INVERT_GLOB="${DB_INVERT_GLOB:-$DB_ROOT/refseq/invert/invert.?}"
 
-# If viral_fungi_archaea is a bowtie2 index prefix at your site, keep as-is.
-# If it's a fasta (not indexed), you must build a bowtie2 index and point to that prefix instead.
+**If viral_fungi_archaea is a bowtie2 index prefix at your site, keep as-is.**
+**If it's a fasta (not indexed), you must build a bowtie2 index and point to that prefix instead.**
 DB_VIRAL_FUNGI_ARCHAEA="${DB_VIRAL_FUNGI_ARCHAEA:-$DB_ROOT/refseq/microbe/viral_fungi_archaea.fa}"
 
-# "Second round" DBs, integrated here
+#### "Second round" DBs, integrated here
 DB_GTDB="${DB_GTDB:-$DB_ROOT/microbial_dbs/GTDB/r89/bowtie2/gtdb_r89}"
 DB_PLANT_GLOB="${DB_PLANT_GLOB:-$DB_ROOT/refseq_23dec2020/plant/plant.?}"
 
 ########################
-# 2) SANITY CHECKS     #
+### 2) SANITY CHECKS     #
 ########################
-# Step 2.1 Ensure required commands exist
+#### Step 2.1 Ensure required commands exist
 req_cmds=(AdapterRemoval fastq-grep sga bowtie2 samtools awk sed gzip)
 for c in "${req_cmds[@]}"; do
   command -v "$c" >/dev/null 2>&1 || {
@@ -81,10 +81,10 @@ for c in "${req_cmds[@]}"; do
 done
 
 #############################################
-# 3) ADAPTERREMOVAL ON ALL *.fastq.gz       #
+### 3) ADAPTERREMOVAL ON ALL *.fastq.gz       #
 #############################################
 
-# Step 3.1 AdapterRemoval on each input file (parallel)
+#### Step 3.1 AdapterRemoval on each input file (parallel)
 for file in *.fastq.gz; do
   AdapterRemoval \
     --file1 "$file" \
@@ -96,14 +96,14 @@ for file in *.fastq.gz; do
     --minquality 30 &
 done
 
-# Step 3.2 Wait for AdapterRemoval jobs
+#### Step 3.2 Wait for AdapterRemoval jobs
 wait
 
 ########################################################
-# 4) RENAME *.truncated OUTPUTS TO *.fq                 #
+### 4) RENAME *.truncated OUTPUTS TO *.fq                 #
 ########################################################
 
-# Step 4.1 Convert "something.fastq.gz.truncated..." to "something.fq"
+#### Step 4.1 Convert "something.fastq.gz.truncated..." to "something.fq"
 for infile in *.truncated; do
   bname="$(basename "$infile")"
   bname2="$(echo "$bname" | sed 's/.fastq.gz.truncated*/.fq/')"
@@ -112,11 +112,12 @@ for infile in *.truncated; do
 done
 
 ########################################################
-# 5) PER-SAMPLE PROCESSING + INTEGRATED MAPPING         #
+### 5) PER-SAMPLE PROCESSING + INTEGRATED MAPPING         #
 ########################################################
 
+#### Step 5.1 Define sample names
+
 for infile in ./*.fq; do
-  # Step 5.1 Define sample names
   bname="$(basename "$infile")"                # e.g. sample.fq
   bprefix="$(echo "$bname" | sed 's/.fq*//')"  # e.g. sample
   sample_dir="${bprefix}_holi"
@@ -126,12 +127,12 @@ for infile in ./*.fq; do
   echo "Output folder:     $sample_dir"
   echo "============================================================"
 
-  # Step 5.2 Create and enter sample directory
+  #### Step 5.2 Create and enter sample directory
   mkdir -p "./$sample_dir"
   cd "./$sample_dir"
 
   ############################################
-  # Step 5.3 Filtering with fastq-grep        #
+  #### Step 5.3 Filtering with fastq-grep        #
   ############################################
 
   echo "Step 5.3.1 Removing poly A tails"
@@ -147,7 +148,7 @@ for infile in ./*.fq; do
   fastq-grep -v "ATCTCGTATGCCGTCTTCTGCTTG" "adap1_kmer2_$bname" > "adap2_kmer2_$bname"
 
   ############################################
-  # Step 5.4 SGA preprocess + dedup           #
+  #### Step 5.4 SGA preprocess + dedup           #
   ############################################
 
   echo "Step 5.4.1 sga preprocess"
@@ -164,10 +165,10 @@ for infile in ./*.fq; do
     | sort -n | uniq -c > "adap2_kmer2_$bname.pp.rmdup.fq.read_length.txt"
 
   ############################################
-  # Step 5.5 Integrated mapping to ALL DBs    #
+  ### Step 5.5 Integrated mapping to ALL DBs    #
   ############################################
 
-  # Step 5.5.1 Define a mapping helper
+  ##### Step 5.5.1 Define a mapping helper
   map_db () {
     local db_prefix="$1"
     echo "Mapping against: $db_prefix"
@@ -176,7 +177,7 @@ for infile in ./*.fq; do
       | samtools view -bS - > "${bprefix}.$(basename "$db_prefix").bam"
   }
 
-  # Step 5.5.2 Map against every DB group
+  ##### Step 5.5.2 Map against every DB group
   for DB in $DB_NORPLANT_GLOB;       do map_db "$DB"; done
   for DB in $DB_NT_GLOB;            do map_db "$DB"; done
   for DB in $DB_VERT_OTHER_GLOB;    do map_db "$DB"; done
@@ -188,7 +189,7 @@ for infile in ./*.fq; do
   for DB in $DB_PLANT_GLOB;         do map_db "$DB"; done
 
   ############################################
-  # Step 5.6 Merge + Sort             #
+  ### Step 5.6 Merge + Sort             #
   ############################################
 
   echo "Step 5.6.1 Merging all BAMs into one"
@@ -204,7 +205,7 @@ for infile in ./*.fq; do
   samtools index "${bprefix}.allDBs.merged.sorted.bam"
 
   ############################################
-  # Step 5.7 Cleanup (optional)               #
+  ### Step 5.7 Cleanup (optional)               #
   ############################################
 
   echo "Step 5.7 Cleaning intermediates (optional)"
@@ -213,14 +214,14 @@ for infile in ./*.fq; do
   rm -f ./*.bam "${bprefix}.allDBs.merged.bam" || true
 
   ############################################
-  # Step 5.8 metaDMG note                     #
+  ### Step 5.8 metaDMG note                     #
   ############################################
 
   echo "Step 5.8 metaDMG input ready:"
   echo "  $(pwd)/${bprefix}.allDBs.merged.sorted.bam"
   echo "These merged, coordinate-sorted BAM files were hereafter parsed to metaDMG."
 
-  # Step 5.9 Return to project root
+  ### Step 5.9 Return to project root
   cd ..
 done
 
